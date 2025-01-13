@@ -9,10 +9,10 @@
           <h3>Players:</h3>
           <div class="players-container">
             <span
-              v-for="(player, playerId) in gameState?.players || {}"
-              :key="playerId"
+              v-for="(player, UUID) in gameState?.players || {}"
+              :key="UUID"
               :class="{'player-highlight': gameState?.currentState !== 'prompt'}"
-              :style="getPlayerStyle(player.CurrentAnswer)"
+              :style="getStyle(UUID, player.CurrentAnswer)"
               class="player-box"
             >
               {{ player.DisplayName }}
@@ -165,22 +165,28 @@ const getVoteStyle = (type) => {
     }
 }
 
-const getPlayerStyle = (currentAnswer) => {
-  if (gameState.value?.currentState === 'prompt') {
-    return {}; // No highlight in the prompt state
+const getStyle = (playerId, currentAnswer) => {
+  if (gameState?.value?.currentState !== 'prompt') {
+    return getPlayerStyle(currentAnswer);
   }
+  if (playerId === localStorage.getItem('clientGuid')) {
+    return getPlayerStyle(currentAnswer);
+  }
+  return null;
+};
 
+const getPlayerStyle = (currentAnswer) => {
   switch (currentAnswer) {
     case 1:
-      return { backgroundColor: '#28a745', color: 'white' }; // NTA (green)
+      return { backgroundColor: '#A8D5BA', color: 'white' }; // Pastel green
     case 2:
-      return { backgroundColor: '#dc3545', color: 'white' }; // YTA (red)
+      return { backgroundColor: '#F4A7A3', color: 'white' }; // Pastel red
     case 3:
-      return { backgroundColor: '#17a2b8', color: 'white' }; // NAH (blue)
+      return { backgroundColor: '#A7D8F0', color: 'white' }; // Pastel blue
     case 4:
-      return { backgroundColor: '#ffc107', color: 'black' }; // ESH (yellow)
+      return { backgroundColor: '#FFE6A7', color: 'black' }; // Pastel yellow
     default:
-      return { backgroundColor: '#e0e0e0', color: 'black' }; // Default (gray)
+      return { backgroundColor: '#F0F0F0', color: 'black' }; // Light gray (default)
   }
 };
 
