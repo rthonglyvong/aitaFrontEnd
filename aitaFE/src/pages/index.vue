@@ -54,6 +54,7 @@
 <script lang="ts" setup>
 // Import Nuxt-specific hooks
 import { ref, onMounted } from 'vue';
+import { useWebSocketStore } from '@/stores/websocket';
 
 // Generate a unique client GUID
 const generateGuid = (): string => {
@@ -79,6 +80,21 @@ const checkAndSetClientGuid = () => {
 // Reactive state
 const displayName = ref('');
 const roomCode = ref('');
+const wsStore = useWebSocketStore();
+
+const handleIncomingMessages = () => {
+  if (wsStore.ws?.readyState === WebSocket.OPEN) {
+    wsStore.ws.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      console.log('Message from server:', data);
+
+      // Example: React based on the received data
+      if (data.action === 'some-action') {
+        console.log('Performing action based on received message');
+      }
+    };
+  }
+};
 
 // Join Room Handler
 const joinRoom = () => {
@@ -90,8 +106,19 @@ const joinRoom = () => {
     alert('Please enter a room code to join.');
     return;
   }
+
   console.log(`Joining room: ${roomCode.value} as ${displayName.value}`);
-  // Add your join room logic here
+  
+  const message = {
+    action: 'join',
+    displayName: displayName.value,
+    roomCode: roomCode.value,
+    uuid: localStorage.getItem('clientGuid'),
+  };
+
+  // Use the WebSocket store to send the message
+  wsStore.sendMessage(message);
+  console.log(`Message sent to join room: ${roomCode.value}`);
 };
 
 // Create Room Handler
@@ -100,8 +127,27 @@ const createRoom = () => {
     alert('Please enter your display name.');
     return;
   }
-  console.log(`Creating a new room as ${displayName.value}`);
-  // Add your create room logic here
+
+  const message = {
+    action: 'create',
+    displayName: displayName.value,
+    uuid: localStorage.getItem('clientGuid'),
+  };
+
+  // Use the WebSocket store to send the message
+  console.log(`Message sent to create a new room as ${displayName.value} and guid: ${message.uuid}`);
+  const url = new URL('ws://localhost:8080/ws');
+  url.searchParams.append('uuid', message.uuid!);
+  url.searchParams.append('displayName', message.displayName!);
+
+  if (roomCode.value) {
+    url.searchParams.append('gameCode', roomCode.value);
+  }
+  // Connect WebSocket
+  wsStore.connect(url.toString()); // Adjust URL if necessary
+
+  // Handle incoming messages
+  handleIncomingMessages();
 };
 
 // Lifecycle hook
