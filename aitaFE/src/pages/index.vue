@@ -56,6 +56,9 @@
 import { ref, onMounted } from 'vue';
 import { useWebSocketStore } from '@/stores/websocket';
 
+// let gameServerUrl = 'ws://localhost:8080/ws'
+let gameServerUrl = 'ws://143.198.105.125:8080/ws'
+
 // Generate a unique client GUID
 const generateGuid = (): string => {
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
@@ -116,8 +119,19 @@ const joinRoom = () => {
     uuid: localStorage.getItem('clientGuid'),
   };
 
-  // Use the WebSocket store to send the message
-  wsStore.sendMessage(message);
+  console.log(`Message sent to create a new room as ${displayName.value} and guid: ${message.uuid}`);
+  const url = new URL(gameServerUrl);
+  url.searchParams.append('uuid', message.uuid!);
+  url.searchParams.append('displayName', message.displayName!);
+  url.searchParams.append('gameCode', roomCode.value)
+  if (roomCode.value) {
+    url.searchParams.append('gameCode', roomCode.value);
+  }
+  // Connect WebSocket
+  wsStore.connect(url.toString()); // Adjust URL if necessary
+
+  // Handle incoming messages
+  handleIncomingMessages();
   console.log(`Message sent to join room: ${roomCode.value}`);
 };
 
@@ -136,7 +150,7 @@ const createRoom = () => {
 
   // Use the WebSocket store to send the message
   console.log(`Message sent to create a new room as ${displayName.value} and guid: ${message.uuid}`);
-  const url = new URL('ws://localhost:8080/ws');
+  const url = new URL(gameServerUrl);
   url.searchParams.append('uuid', message.uuid!);
   url.searchParams.append('displayName', message.displayName!);
 

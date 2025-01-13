@@ -1,78 +1,202 @@
 <template>
-    <v-app>
-      <v-main>
-        <v-container>
-          <h1 class="text-center mb-6">Live Game</h1>
-  
-          <!-- Prompt Container -->
-          <div class="prompt-container scrollable-container mb-6">
-            <h3>{{ isSecondaryState ? 'Consensus' : 'Prompt' }}</h3>
-            <p>{{ isSecondaryState ? consensusText : promptText }}</p>
+  <v-app>
+    <v-main>
+      <v-container>
+        <h1 class="text-center mb-6">Live Game</h1>
+
+        <!-- Players Display -->
+        <div class="players-list mb-4">
+          <h3>Players:</h3>
+          <div class="players-container">
+            <span
+              v-for="(player, playerId) in gameState?.players || {}"
+              :key="playerId"
+              :class="{'player-highlight': gameState?.currentState !== 'prompt'}"
+              :style="getPlayerStyle(player.CurrentAnswer)"
+              class="player-box"
+            >
+              {{ player.DisplayName }}
+            </span>
           </div>
-  
-          <!-- Graph Container -->
-          <div class="graph-container mb-6">
-            <h3>Graph Placeholder</h3>
-            <div class="graph-placeholder">
-              [Graph will go here]
-            </div>
+        </div>
+
+        <!-- Prompt or Reveal Container -->
+        <div class="prompt-container scrollable-container mb-6">
+          <h3>{{ isReveal ? 'Consensus' : 'Prompt' }}</h3>
+          <p v-if="!isReveal">
+            <strong>Author:</strong> {{ gameState?.prompt?.Author || 'N/A' }}<br />
+            <strong>{{ gameState?.prompt?.Body || 'Loading...' }}</strong>
+            {{ gameState?.prompt?.SelfText || 'Loading...' }}
+
+          </p>
+          <p v-else>
+            <strong>Consensus:</strong> {{ gameState?.reveal?.Body || 'N/A' }}<br />
+            <strong>Upvotes:</strong> {{ gameState?.reveal?.Upvotes || 0 }}
+          </p>
+        </div>
+
+        <!-- Graph Placeholder -->
+        <div class="graph-container mb-6">
+          <h3>Graph Placeholder</h3>
+          <div class="graph-placeholder">
+            [Graph will go here]
           </div>
-  
-          <!-- Buttons -->
-          <div class="buttons-container d-flex justify-center">
-            <v-btn color="success" class="mr-2">NTA</v-btn>
-            <v-btn color="error" class="mr-2">YTA</v-btn>
-            <v-btn color="info" class="mr-2">NAH</v-btn>
-            <v-btn color="warning">ESH</v-btn>
-          </div>
-  
-          <!-- Debug Button -->
-          <div class="debug-container mt-6">
-            <v-btn color="secondary" @click="toggleState">Debug Toggle State</v-btn>
-          </div>
-        </v-container>
-      </v-main>
-    </v-app>
-  </template>
-  
-  <script setup>
-  import { ref } from 'vue';
-  
-  // Primary and secondary states
-  const isSecondaryState = ref(false); // Tracks whether we are in the secondary state
-  
-  // Prompt texts
-  const promptText = ref('This is the initial prompt text.');
-  const consensusText = ref('Lorem ipsum dolor sit amet, consectetur adipiscing elit.');
-  
-  // Debug button handler
-  const toggleState = () => {
-    isSecondaryState.value = !isSecondaryState.value;
-    console.log(`State toggled to: ${isSecondaryState.value ? 'Consensus' : 'Prompt'}`);
-  };
-  </script>
-  
-  <style scoped>
-  .scrollable-container {
-    max-height: 200px;
-    overflow-y: auto;
-    padding: 16px;
-    border: 1px solid #ccc;
-    border-radius: 8px;
-    background-color: #f9f9f9;
+        </div>
+
+        <!-- Voting Buttons -->
+        <div v-if="!isReveal" class="buttons-container d-flex justify-center">
+          <v-btn 
+            color="success" 
+            class="mr-2" 
+            @click="submitVote(1)" 
+            :disabled="gameState?.currentState !== 'prompt'"
+          >
+            NTA
+          </v-btn>
+
+          <v-btn 
+            color="error" 
+            class="mr-2" 
+            @click="submitVote(2)" 
+            :disabled="gameState?.currentState !== 'prompt'"
+          >
+            YTA
+          </v-btn>
+
+          <v-btn 
+            color="info" 
+            class="mr-2" 
+            @click="submitVote(3)" 
+            :disabled="gameState?.currentState !== 'prompt'"
+          >
+            NAH
+          </v-btn>
+
+          <v-btn 
+            color="warning" 
+            @click="submitVote(4)" 
+            :disabled="gameState?.currentState !== 'prompt'"
+          >
+            ESH
+          </v-btn>
+        </div>
+        <!-- "Next" Button for Room Leader -->
+        <div v-if="isRoomLeader" class="d-flex justify-center mt-4">
+          <v-btn color="primary" @click="nextPrompt">Next</v-btn>
+        </div>
+      </v-container>
+    </v-main>
+  </v-app>
+</template>
+
+<script setup>
+import { computed } from 'vue';
+import { useWebSocketStore } from '@/stores/websocket';
+import { useRouter } from 'vue-router';
+
+const wsStore = useWebSocketStore();
+const router = useRouter();
+
+// Access gameState from the store
+const gameState = computed(() => wsStore.gameState);
+
+// Determine if the current state is "reveal"
+const isReveal = computed(() => gameState.value?.currentState === 'reveal');
+
+// Check if the current user is the room leader
+const isRoomLeader = computed(() => {
+  const currentUuid = localStorage.getItem('clientGuid');
+  console.log(currentUuid)
+  console.log("---------")
+  console.log(gameState.value?.roomLeader)
+  return currentUuid === gameState.value?.roomLeader;
+});
+
+// Submit a vote
+const submitVote = (vote) => {
+  wsStore.sendMessage({
+    action: 'answer',
+    uuid: localStorage.getItem('clientGuid'),
+    vote,
+  });
+};
+
+// Proceed to the next prompt (only for the room leader)
+const nextPrompt = () => {
+  wsStore.sendMessage({
+    action: 'forceSkip',
+    uuid: localStorage.getItem('clientGuid'),
+  });
+};
+
+const getPlayerStyle = (currentAnswer) => {
+  if (gameState.value?.currentState === 'prompt') {
+    return {}; // No highlight in the prompt state
   }
-  
-  .graph-placeholder {
-    height: 200px;
-    background-color: #e0e0e0;
-    border: 2px dashed #aaa;
-    display: flex;
-    justify-content: center;
-    align-items: center;
+
+  switch (currentAnswer) {
+    case 1:
+      return { backgroundColor: '#28a745', color: 'white' }; // NTA (green)
+    case 2:
+      return { backgroundColor: '#dc3545', color: 'white' }; // YTA (red)
+    case 3:
+      return { backgroundColor: '#17a2b8', color: 'white' }; // NAH (blue)
+    case 4:
+      return { backgroundColor: '#ffc107', color: 'black' }; // ESH (yellow)
+    default:
+      return { backgroundColor: '#e0e0e0', color: 'black' }; // Default (gray)
   }
-  
-  .buttons-container > * {
-    margin: 8px;
+};
+
+// Watch for game state changes to handle page redirection
+watch(
+  () => gameState.value?.currentState,
+  (newState) => {
+    if (newState === 'lobby') {
+      router.push('/lobby'); // Navigate back to lobby if state changes
+    }
   }
-  </style>
-  
+);
+</script>
+
+<style scoped>
+.scrollable-container {
+  max-height: 200px;
+  overflow-y: auto;
+  padding: 16px;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  background-color: #f9f9f9;
+}
+
+.graph-placeholder {
+  height: 200px;
+  background-color: #e0e0e0;
+  border: 2px dashed #aaa;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.buttons-container > * {
+  margin: 8px;
+}
+
+.players-container {
+  display: flex;
+  flex-wrap: wrap; /* Allow wrapping */
+  gap: 8px; /* Add spacing between boxes */
+  padding: 8px;
+}
+
+.player-box {
+  display: inline-block;
+  padding: 8px 12px;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  background-color: #f9f9f9; /* Default background */
+  transition: background-color 0.3s ease, color 0.3s ease;
+  white-space: nowrap; /* Prevent text from breaking */
+  text-align: center;
+}
+</style>
