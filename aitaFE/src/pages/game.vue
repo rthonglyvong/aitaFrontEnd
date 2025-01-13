@@ -25,14 +25,27 @@
           <h3>{{ isReveal ? 'Consensus' : 'Prompt' }}</h3>
           <p v-if="!isReveal">
             <strong>Author:</strong> {{ gameState?.prompt?.Author || 'N/A' }}<br />
-            <strong>{{ gameState?.prompt?.Body || 'Loading...' }}</strong>
-            {{ gameState?.prompt?.SelfText || 'Loading...' }}
-
+            <strong>{{ gameState?.prompt?.Body || 'Loading...' }}</strong> <br />
+            <span v-if="gameState?.prompt?.SelfText" v-html="formatText(gameState.prompt.SelfText)"></span> 
+            <span v-else>Loading...</span>
           </p>
           <p v-else>
-            <strong>Consensus:</strong> {{ gameState?.reveal?.Body || 'N/A' }}<br />
-            <strong>Upvotes:</strong> {{ gameState?.reveal?.Upvotes || 0 }}
-          </p>
+          <strong>Consensus:</strong> <br />
+          <span v-if="gameState?.reveal?.Body" v-html="formatText(gameState.reveal.Body)"></span>
+          <span v-else>Loading...</span><br />
+          
+          <strong>Upvotes:</strong> {{ gameState?.reveal?.Upvotes || 0 }}<br />
+
+          <strong>Votes:</strong>
+          <template v-for="(value, key) in gameState?.reveal?.Votes" :key="key">
+            <span 
+              v-if="value > 0" 
+              :style="getVoteStyle(key)" 
+              class="vote-box">
+              {{ key }}: {{ value }}
+            </span>
+          </template>
+        </p>
         </div>
 
         <!-- Graph Placeholder -->
@@ -94,6 +107,14 @@ import { computed } from 'vue';
 import { useWebSocketStore } from '@/stores/websocket';
 import { useRouter } from 'vue-router';
 
+function formatText(text) {
+  if (!text) return "";
+  return text
+    .replace(/\n{3,}/g, "<br><br>")
+    .replace(/\n{2}/g, "<br><br>")
+    .replace(/\n/g, "<br>");
+}
+
 const wsStore = useWebSocketStore();
 const router = useRouter();
 
@@ -128,6 +149,21 @@ const nextPrompt = () => {
     uuid: localStorage.getItem('clientGuid'),
   });
 };
+const getVoteStyle = (type) => {
+  console.log(type)
+    switch (type) {
+      case 'NTA':
+        return { backgroundColor: '#28a745', color: 'white', padding: '2px 6px', borderRadius: '3px', marginRight: '6px' };
+      case 'YTA':
+        return { backgroundColor: '#dc3545', color: 'white', padding: '2px 6px', borderRadius: '3px', marginRight: '6px' };
+      case 'NAH':
+        return { backgroundColor: '#17a2b8', color: 'white', padding: '2px 6px', borderRadius: '3px', marginRight: '6px' };
+      case 'ESH':
+        return { backgroundColor: '#ffc107', color: 'black', padding: '2px 6px', borderRadius: '3px', marginRight: '6px' };
+      default:
+        return { backgroundColor: '#e0e0e0', color: 'black', padding: '2px 6px', borderRadius: '3px', marginRight: '6px' };
+    }
+}
 
 const getPlayerStyle = (currentAnswer) => {
   if (gameState.value?.currentState === 'prompt') {
@@ -161,7 +197,7 @@ watch(
 
 <style scoped>
 .scrollable-container {
-  max-height: 200px;
+  max-height: 400px;
   overflow-y: auto;
   padding: 16px;
   border: 1px solid #ccc;
