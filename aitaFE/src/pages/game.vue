@@ -51,8 +51,9 @@
         <!-- Graph Placeholder -->
         <div class="graph-container mb-6">
           <h3>Graph Placeholder</h3>
-          <div class="graph-placeholder">
-            [Graph will go here]
+          <Line v-if="chartData" :data="chartData" :options="chartOptions" style="height: 200px; width: 100%;" class="custom-chart" />
+          <div v-else class="graph-placeholder">
+            <p>Loading graph data...</p>
           </div>
         </div>
 
@@ -106,6 +107,107 @@
 import { computed } from 'vue';
 import { useWebSocketStore } from '@/stores/websocket';
 import { useRouter } from 'vue-router';
+import { Line } from 'vue-chartjs';
+import {
+  Chart as ChartJS,
+  Title,
+  Tooltip,
+  Legend,
+  LineElement,
+  PointElement,
+  LinearScale,
+  CategoryScale,
+} from 'chart.js';
+
+ChartJS.register(Title, Tooltip, Legend, LineElement, PointElement, LinearScale, CategoryScale);
+
+const chartOptions = {
+  responsive: true,
+  maintainAspectRatio: false, // Disable aspect ratio to allow custom height
+  scales: {
+    x: {
+      title: { display: true, text: 'Rounds' }
+    },
+    y: {
+      title: { display: true, text: 'Answers' },
+      min: 1, // Force the minimum value to 1
+      max: 4, // Force the maximum value to 4
+      ticks: {
+        stepSize: 1,
+        callback: function (value) {
+          const labels = {
+            1: 'NTA',
+            2: 'YTA',
+            3: 'NAH',
+            4: 'ESH'
+          };
+          return labels[value] || value;
+        }
+      }
+    }
+  }
+};
+
+const chartData = computed(() => {
+  if (!gameState.value || !gameState.value.playersToAnswers) {
+    return { labels: [], datasets: [] };
+  }
+
+  const playersToAnswers = gameState.value.playersToAnswers;
+
+  // Convert answer values to strings for y-axis
+  const answerToLabel = (answer) => {
+    const labels = {
+      1: 'Low',
+      2: 'Medium',
+      3: 'High',
+      4: 'Very High'
+    };
+    return labels[answer] || 'Unknown';
+  };
+
+  // Get unique rounds to define the x-axis
+  const uniqueRounds = [...new Set(
+    Object.values(playersToAnswers).flatMap((answers) =>
+      answers.map((entry) => entry.round)
+    )
+  )].sort((a, b) => a - b); // Sort rounds numerically
+
+  // Prepare datasets for each player
+  const datasets = Object.entries(playersToAnswers).map(([playerId, answers]) => {
+    // Map answers to dataset points
+    const data = uniqueRounds.map((round) => {
+      const entry = answers.find((answer) => answer.round === round);
+      return entry ? entry.answer : null; // Use null for missing data
+    });
+
+    return {
+      label: gameState.value.players[playerId].DisplayName, // Shortened UUID
+      data: data.map((value) => (value !== null ? value : null)), // Map answers
+      borderColor: getRandomColor(gameState.value.players[playerId].DisplayName), // Optional: Dynamic color
+      fill: false
+    };
+  });
+
+  return {
+    labels: uniqueRounds.map((round) => `Round ${round}`), // x-axis labels
+    datasets
+  };
+});
+
+// Utility function to generate random colors for the lines
+function getRandomColor(input) {
+  let hash = 0;
+  for (let i = 0; i < input.length; i++) {
+    hash = input.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  let color = '#';
+  for (let i = 0; i < 3; i++) {
+    const value = (hash >> (i * 8)) & 0xff;
+    color += ('00' + value.toString(16)).slice(-2);
+  }
+  return color;
+}
 
 function formatText(text) {
   if (!text) return "";
@@ -240,5 +342,10 @@ watch(
   transition: background-color 0.3s ease, color 0.3s ease;
   white-space: nowrap; /* Prevent text from breaking */
   text-align: center;
+}
+
+.custom-chart {
+  height: 200px !important; /* Force height */
+  width: 100%; /* Ensure full width */
 }
 </style>

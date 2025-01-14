@@ -56,8 +56,8 @@
 import { ref, onMounted } from 'vue';
 import { useWebSocketStore } from '@/stores/websocket';
 
-// let gameServerUrl = 'ws://localhost:8080/ws'
-let gameServerUrl = 'ws://143.198.105.125:8080/ws'
+let gameServerUrl = 'ws://localhost:8080/ws'
+// let gameServerUrl = 'ws://143.198.105.125:8080/ws'
 
 // Generate a unique client GUID
 const generateGuid = (): string => {
