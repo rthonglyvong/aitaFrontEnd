@@ -58,7 +58,7 @@ import { useWebSocketStore } from '@/stores/websocket';
 
 // let gameServerUrl = 'ws://localhost:8080/ws'
 // let gameServerUrl = 'ws://143.198.105.125:8080/ws'
-let gameServerUrl = 'wss://aita.pleasegivemeacheapdomain.cheap:8080/ws'
+let gameServerUrl = 'wss://aita.pleasegivemeacheapdomain.cheap/ws'
 
 // Generate a unique client GUID
 const generateGuid = (): string => {
